@@ -1,7 +1,12 @@
 
 ###############################
-'''PROJECT DESCRIPTION
-____
+'''
+Solar market segmentation
+
+Using data on demographics and solar irradiation, this script finds clusters of geographic areas
+(by postcode) using KMeans. These segments are anlaysed to find those which had a high take up of
+of small scale solar (ie solar panels) in 2016 and then compared to the number of installations in
+2017. Within high take up segments, areas with the potential for high growth are also identified.
 
 Versions
 Ubuntu 16.04 LTS
@@ -13,13 +18,15 @@ Python 3.5.2
 import pandas as pd
 import zipfile36 as zipfile
 import numpy as np
-from sklearn.cluster import KMeans # Need to install
-
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import Normalizer
+from sklearn.cluster import KMeans
+from scipy.spatial import distance
 
 # SETUP PROJECT DIRECTORIES
-project_dir = r'/home/kent/PycharmProjects/KPMG_task' # [path to top level directory]
+# project_dir = r'_____' # [path to top level directory]
 source_data_dir = project_dir + r'/source_data'
-output_data_dir = project_dir + r'/output_data'
 
 # # UNZIP DATA FILES
 # # Census data
@@ -38,10 +45,11 @@ df_solar.rename(columns={'Small Unit Installation Postcode':                    
                          'Previous Years (2001-2016) - Installations Quantity': 'solar_units_2016',
                          'Installations Quantity Total':                        'solar_units_2017'},
                 inplace=True)
-df_solar['solar_units_change'] = df_solar.solar_units_2017 - df_solar.solar_units_2016
+df_solar['solar_units_change']     = df_solar.solar_units_2017 - df_solar.solar_units_2016
+df_solar['solar_units_change_pct'] = (df_solar.solar_units_2017 / df_solar.solar_units_2016) - 1
 
 # Solar irradiation data
-df_irradiation = pd.read_csv(source_data_dir + r'/energymatters/irradiation.csv')
+df_irradiation = pd.read_csv(source_data_dir + r'/irradiation.csv')
 
 # Census data
 census_dict = {'2016Census_G59_AUS_POA': ['One_method_Train_P',
@@ -75,7 +83,7 @@ census_dict = {'2016Census_G59_AUS_POA': ['One_method_Train_P',
                }
 
 for i in census_dict.keys():
-    temp_file = pd.read_csv(source_data_dir + r'/2016 Census GCP Postal Areas for AUST/' + i + r'.csv')
+    temp_file = pd.read_csv(source_data_dir + r'/' + i + r'.csv')
     responses = census_dict[i]
     responses = responses + ['POA_CODE_2016']
     temp_file = temp_file[responses]
@@ -135,13 +143,13 @@ df['postgrad_pct']           = df.postgrad_count / df.population
 df['motor_vehicles_pct']     = df.motor_vehicles_count / df.private_dwellings_count
 df['owned_mortgage_pct']     = (df.house_owned_count + df.house_mortgage_count) / df.private_dwellings_count
 
+# Merge with irradiation data
 df = pd.merge(df, df_irradiation,
               how='left',
               on='POA_CODE_2016')
 
-
-X = df.drop(['POA_CODE_2016',
-             'private_dwellings_count',
+# Drop columns not wanted for segmentation
+X = df.drop(['private_dwellings_count',
              'train_only_count',
              'bus_only_count',
              'tram_only_count',
@@ -153,46 +161,70 @@ X = df.drop(['POA_CODE_2016',
              'all_owned_count',
              'all_mortgage_count']
             , axis=1)
+# Remove na's
 X = X.dropna()
+# Save a list of the postcode
+postcode_idx = X.POA_CODE_2016
+postcode_idx.reset_index(drop=True, inplace=True)
+# Then drop postcode from the matrix for segmentation
+X = X.drop('POA_CODE_2016', axis=1)
+# Save a list of the fields
 field_idx = X.dtypes
-postcode_idx = df.POA_CODE_2016
+# Convert to numpy
 X = np.array(X)
 
-from sklearn.pipeline import Pipeline
-from sklearn.pipeline import make_pipeline
-from sklearn.preprocessing import StandardScaler
-from sklearn.preprocessing import Normalizer
-from sklearn.cluster import KMeans
-# make_pipeline(StandardScaler(), Normalizer(), KMeans())
-# Pipeline(memory=None,
-#          steps=[('binarizer', Binarizer(copy=True, threshold=0.0)),
-#                 ('multinomialnb', MultinomialNB(alpha=1.0,
-#                                                 class_prior=None,
-#                                                 fit_prior=True))])
-
-# Create pre-processing and clustering pipeline
+# Create pre-processing and clustering pipeline...
 pipe = make_pipeline(StandardScaler(), Normalizer(), KMeans())
-kmeans_fit_predict = pipe.fit_predict(X)
-# kmeans_fit_predict = pipe.fit_predict(np.array(df.iloc[:, :3]))
+# ...and now create segments
+kmeans_fit_predict = pipe.set_params(kmeans__random_state=23).fit_predict(X)
 
-test_cluster = pd.Series(kmeans_fit_predict)
+# Create a dataframe with clusters, postcodes and solar installation data
+output_clusters = pd.Series(kmeans_fit_predict)
+clusters_postcodes = pd.DataFrame({'postcode': postcode_idx,
+                                   'cluster':  output_clusters})
+clusters_postcodes.postcode = clusters_postcodes.postcode.str.replace("POA", "")
+clusters_postcodes.postcode = clusters_postcodes.postcode.apply(lambda x: int(x))
+
+output_by_postcode = pd.merge(clusters_postcodes, df_solar,
+                              how='left',
+                              left_on='postcode',
+                              right_on='POA_CODE_2016')
+
+units_2016_df = output_by_postcode.groupby('cluster')['solar_units_2016'].mean()
+units_2016_df = units_2016_df.reset_index()
+change_df = output_by_postcode.groupby('cluster')['solar_units_change'].mean()
+change_df = change_df.reset_index()
+
+summary_output = pd.merge(units_2016_df, change_df, on='cluster')
+
+# Find the cluster with the most units installed as at 2016
+print("Cluster with most units in 2016: cluster " +  str(summary_output.iloc[summary_output.idxmax().solar_units_2016].cluster))
+# If we assume that take-up of solar panels has not reached saturation, we can suppose that this
+# cluster will show strong sales in 2017. Let's have a look
+print("Cluster with most units installed in 2017: cluster " + str(summary_output.iloc[summary_output.idxmax().solar_units_change].cluster))
+#...yes, this cluster had the most sales in 2017.
+
+# However, the number of installations in this cluster is widely distributed:
+output_by_postcode[output_by_postcode.cluster==4].solar_units_change.hist(bins=30)
+
+# We could consider looking at the poscodes in this cluster that had weaker sales. There could be
+# potential for growth in these similiar areas as they 'catch-up' to other parts of the segment that
+# have already have a high number of installations.
 
 
-df_testing = pd.DataFrame({'postcode': df.POA_CODE_2016,
-                           'cluster':  test_cluster})
-df_testing.postcode = df_testing.postcode.str.replace("POA", "")
-df_testing.postcode = df_testing.postcode.apply(lambda x: int(x))
+# ASIDE - let's see how close each cluster is to our 'high-value' cluster - 4. We might want to
+# see if there is potential for growth in the clusters that are closest to number 4.
+#
+# Get centriod for cluster 4
+ref_point = pipe.named_steps['kmeans'].cluster_centers_[4]
+# Caclulate the euclidian distance between 4 and each other clusters.
+rel_dist = []
+for i in range(8):
+    temp_point = pipe.named_steps['kmeans'].cluster_centers_[i]
+    temp_dist  = distance.euclidean(ref_point, temp_point)
+    rel_dist.append([i, temp_dist])
+rel_dist = pd.DataFrame(rel_dist)
+rel_dist.columns = ['cluster', 'rel_dist']
 
-test_merge = pd.merge(df_testing, df_solar,
-         how='left',
-         left_on='postcode',
-         right_on='POA_CODE_2016')
-
-test_merge.groupby('cluster')['solar_units_2016'].mean()
-test_merge.groupby('cluster')['solar_units_change'].mean()
-
-cluster_4 = test_merge[test_merge.cluster==4].sort_values('solar_units_2016')
-cluster_4_a = cluster_4.iloc[:150, :]
-cluster_4_b = cluster_4.iloc[150:, :]
-print(cluster_4_a.solar_units_change.mean())
-print(cluster_4_b.solar_units_change.mean())
+print("These are the distances between cluster 4 and all clusters")
+print(rel_dist)
