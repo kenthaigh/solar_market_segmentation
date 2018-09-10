@@ -5,7 +5,7 @@ class EnergySpider(scrapy.Spider):
     name = "energymatters"
     start_urls = ['https://www.energymatters.com.au/solar-location/abbotsford-2046/',     # First page
                   'https://www.energymatters.com.au/solar-location/williamtown-2318/',    # Restart after broken link
-                  'https://www.energymatters.com.au/solar-location/williamtown-2318/',    #  Restart after broken link
+                  'https://www.energymatters.com.au/solar-location/williamtown-2318/',    # Restart after broken link
                   'https://www.energymatters.com.au/solar-location/valencia-creek-3860/', # Restart after broken link
                   'https://www.energymatters.com.au/solar-location/unley-5061/',          # Restart after broken link
                   'https://www.energymatters.com.au/solar-location/reids-creek-4625/',    # Restart after broken link
