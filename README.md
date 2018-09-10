@@ -2,20 +2,18 @@
 
 ### Motivation
 
-
-
-
 Using data on demographics and solar irradiation, this script finds clusters of geographic areas
 (by postcode) using KMeans. These segments are anlaysed to find those which had a high take up of
 of small scale solar (ie solar panels) in 2016 and then compared to the number of installations in
 2017. Within high take up segments, areas with the potential for high growth are also identified.
 
 ### Model
+The clustering in this analysis is undertaken using the KMeans algorithm from Python's scikit-learn. 
 
 ### Project structure
 The main project script is solar_market_segmentation.py. This script will load data from the source_data folder, run the data cleaning and clustering model, and output interesting findings to the console.
 
-The 
+The files energymatters_spider.py	and parse_energymatters.py are used for webscraping and data parsing. They cannot be run directly as is. For more infomation see the data section below. 
 
 ### Data
 The data in the project is from the following sources:
