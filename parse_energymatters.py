@@ -1,8 +1,8 @@
 
 
 ###############################
-'''PROJECT DESCRIPTION
-____
+'''
+Script to extract data from .jl files created by scrapy routine.
 
 Versions
 Ubuntu 16.04 LTS
@@ -15,21 +15,19 @@ import pandas as pd
 import re
 import os
 
+# source_data = [file path to source data directory - not jl files not uploaded]
+# output_data = [file path to where you want to save output]
+
 jl_list = []
-for file in os.listdir("./source_data/energymatters"):
+for file in os.listdir(file_path):
     if file.endswith(".jl"):
         jl_list = jl_list + [file]
 
 jl_concat = pd.Series()
 for file in jl_list:
-    temp_file = r"./source_data/energymatters/" + file
+    temp_file = file_path + file
     temp_series = pd.Series(tuple(open(temp_file, 'r')))
     jl_concat = jl_concat.append(temp_series)
-
-# file = r'/home/kent/PycharmProjects/KPMG_task/scripts/test_tutorial/energymatters.jl'
-# lines = pd.Series(tuple(open(file, 'r')))
-# idx = lines.apply(lambda x: 'irrad' in x)
-# test = lines[idx].apply(lambda x: re.findall(r"\d+\.\d+", x))
 
 df_energymatters = jl_concat.str.split('irra', expand=True)
 
@@ -52,4 +50,4 @@ irradiation_df = pd.DataFrame({'POA_CODE_2016': postcodes,
                                'irradiation': irradiation})
 irradiation_df = irradiation_df.groupby('POA_CODE_2016')['irradiation'].mean().to_frame()
 irradiation_df.reset_index(inplace=True)
-irradiation_df.to_csv(r'./source_data/energymatters/irradiation.csv', index=False)
+irradiation_df.to_csv(output_data + r'/irradiation.csv', index=False)
