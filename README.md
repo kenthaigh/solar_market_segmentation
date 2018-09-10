@@ -1,14 +1,10 @@
 ## Segmentation of the Australian solar market
 
 ### Motivation
-
-Using data on demographics and solar irradiation, this script finds clusters of geographic areas
-(by postcode) using KMeans. These segments are anlaysed to find those which had a high take up of
-of small scale solar (ie solar panels) in 2016 and then compared to the number of installations in
-2017. Within high take up segments, areas with the potential for high growth are also identified.
+The uptake of small scale solar (ie. household solar panels) has been growing in recent years alongside increases in electricity prices and decreasing installation costs. This analysis identifies geographical areas that may be expected to show further uptake of solar panels. This information is useful for energy market operator planning as well as for sales forecasting by solar panel retailers.
 
 ### Model
-The clustering in this analysis is undertaken using the KMeans algorithm from Python's scikit-learn. 
+The clustering in this analysis is undertaken using the KMeans algorithm from Python's scikit-learn. The data analysed includes demographic information and solar irradiation data by postcode. The variables selected for consideration are those which are could be considered as potentially related to the uptake of household solar panels. These include the capacity to pay, education status, age, number/percentage of properties that could benefit from solar panels, and amount of sun energy in that location. The clusters produced are compared to actual solar panel installation data for analysis.
 
 ### Project structure
 The main project script is solar_market_segmentation.py. This script will load data from the source_data folder, run the data cleaning and clustering model, and output interesting findings to the console.
@@ -28,4 +24,4 @@ The data in the project is from the following sources:
 
 
 #### System and software
-Ubuntu 16.04LTX Python 3.5.2
+Ubuntu 16.04LTS Python 3.5.2
